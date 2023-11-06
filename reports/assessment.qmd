@@ -104,17 +104,6 @@ find_hatching_beach <- function(site, date) {
   return(result$site) # return the hatching beach
 }
 
-
-where <-bloy_chicks %>% 
-  count(beach) %>% 
-  filter(n == max(n)) %>% 
-  left_join(bloy_chicks, by = c("beach")) %>% 
-  filter(survey == min(survey)) %>% 
-  sample_n(1)
-where
-
-find_hatching_beach(bloy_chicks$beach, bloy_chicks$survey)
-
 # split-apply-combine
 hatch <- bloy_chicks %>% 
   group_by(bird) %>% 

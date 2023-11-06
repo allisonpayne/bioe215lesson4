@@ -1,1 +1,1 @@
-Set up the readme
+Find the week 4 assessment [here](assessment.qmd). 
