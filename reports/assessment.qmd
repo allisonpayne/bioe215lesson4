@@ -1,0 +1,127 @@
+Simulate data to work with.
+
+```{r}
+library(tidyverse)
+
+# Generate sample data
+# Sightings of Black Oystercatcher chicks at Santa Cruz beaches
+beaches <- c("Cowell's", "Steamer Lane", "Natural Bridges", "Mitchell's", "Main")
+# blue, green, black, white, yellow
+band_colors <- c("B", "G", "K", "W", "Y") 
+# Surveys took place weekly in the summer of 2023
+surveys <- seq(as.Date("2023-06-01"), as.Date("2023-08-31"), by = 7)
+
+# Setting the "seed" forces randomized functions (like sample()) to generate
+# the same output
+set.seed(1538)
+# 3 band colors identify a bird. We want 12 birds.
+birds <- paste0(
+  sample(band_colors, 25, replace = TRUE),
+  sample(band_colors, 25, replace = TRUE),
+  sample(band_colors, 25, replace = TRUE)
+) %>% 
+  unique() %>%
+  head(12)
+bloy_chicks <- tibble(
+  # Randomly generate survey data
+  beach = sample(beaches, size = 100, replace = TRUE),
+  bird = sample(birds, size = 100, replace = TRUE),
+  survey = sample(surveys, size = 100, replace = TRUE)
+) %>% 
+  # Remove duplicates (see ?distinct)
+  distinct() %>% 
+  # Sort by survey date and location
+  arrange(survey, beach)
+```
+
+Q1: We are all going to end up with the same data frames because we are using set seed, which starts the randomized functions all from the same point.
+
+```{r}
+birds <- paste0(
+  sample(band_colors, 25, replace = TRUE),
+  sample(band_colors, 25, replace = TRUE),
+  sample(band_colors, 25, replace = TRUE)
+) %>% 
+  unique() %>%
+  head(12)
+
+```
+
+This code creates a fake dataset by taking 25 samples from band_colors with replacements. It then combines the first result in each list, so that it is a list of 25 sets of 3 band colors. It gets rid of any duplicates and then shows the first 12 results.
+
+We generated 100 observations, but bloy_chicks has 94 observations. I think this is because it removes duplicates using distinct().
+
+```{r}
+# Find most frequent beach per bird
+beach_freq <- bloy_chicks %>% 
+  group_by(bird) %>% 
+  count(bird, beach) %>% 
+  filter(n == max(n)) %>% 
+  ungroup()
+
+# Find first date for each bird+beach
+beach_early <- bloy_chicks %>% 
+  group_by(bird, beach) %>% 
+  summarize(earliest = min(survey),
+            .groups = "drop")
+
+# Join the two conditions and retain most frequent beach, only earliest
+hatch_beach <- beach_freq %>% 
+  left_join(beach_early, by = c("bird", "beach")) %>% 
+  group_by(bird) %>% 
+  filter(earliest == min(earliest)) %>% 
+  sample_n(1) %>% # Randomly choose 1 row. See ?sample_n
+  ungroup()
+    
+```
+
+Custom function!
+
+The logic:
+
+1.  Put the logic for estimating the hatching beach in a single function.
+
+2.  Group the data by bird
+
+3.  Summarize each group using your custom function
+
+Using this workflow: Most frequent site -\> earliest day -\> choose 1
+
+```{r}
+
+find_hatching_beach <- function(site, date) {
+  # Start with a data frame (or tibble) of site and date for *one* bird
+  # Use pipes and dplyr functions to find the hatching beach
+  bird_observations <- tibble(site, date)
+  result <- bird_observations %>% 
+    count(site) %>% 
+    filter(n == max(n)) %>% 
+    left_join(bird_observations, by = c("site")) %>% 
+    filter(date == min(date)) %>% 
+    sample_n(1)
+    # use as many pipes and dplyr functions as necessary
+  # result should end up as a data frame with one row for the hatching beach
+  return(result$site) # return the hatching beach
+}
+
+
+where <-bloy_chicks %>% 
+  count(beach) %>% 
+  filter(n == max(n)) %>% 
+  left_join(bloy_chicks, by = c("beach")) %>% 
+  filter(survey == min(survey)) %>% 
+  sample_n(1)
+where
+
+find_hatching_beach(bloy_chicks$beach, bloy_chicks$survey)
+
+# split-apply-combine
+hatch <- bloy_chicks %>% 
+  group_by(bird) %>% 
+  summarize(hatch = find_hatching_beach(beach, survey))
+
+```
+
+The column I used for "date" was "survey"; the column I used for "site" was "beach".
+
+The hatching beach for both TWG and WYB was Mitchell's.
